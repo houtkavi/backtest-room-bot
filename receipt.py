@@ -28,7 +28,7 @@ def lr(left: str, right: str) -> str:
     return left + " " * max(gap, 1) + right
 
 
-def build_lines(bt: Backtest, receipt_no: int) -> list:
+def build_lines(bt: Backtest, receipt_no: int, trader: str = "") -> list:
     """Each line: (text, style) where style in normal/bold/big/center/rule/dots/space."""
     s = bt.stats()
     now = datetime.now(TZ)
@@ -41,6 +41,9 @@ def build_lines(bt: Backtest, receipt_no: int) -> list:
     add(st="space")
     add(lr(f"Receipt #{receipt_no:05d}", now.strftime("%d %b %Y")))
     add(lr(f"Table: {MODE[bt.mode].split()[0]}", now.strftime("%H:%M")))
+    if trader:
+        name = "".join(ch for ch in trader if ord(ch) < 256)[:24] or "Trader"
+        add(lr("Trader:", name))
     add(st="dots")
 
     add("ORDER", "bold")
@@ -116,8 +119,8 @@ def _height(lines) -> float:
     return h
 
 
-def render(bt: Backtest, receipt_no: int = 1) -> bytes:
-    lines = build_lines(bt, receipt_no)
+def render(bt: Backtest, receipt_no: int = 1, trader: str = "") -> bytes:
+    lines = build_lines(bt, receipt_no, trader)
     # split into pages if very long (PDF page height limit)
     pages, cur, ch = [], [], 0
     for ln in lines:

@@ -13,7 +13,7 @@ import os
 import logging
 from pathlib import Path
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, ForceReply
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler,
     ContextTypes, filters,
@@ -102,18 +102,30 @@ def money(x: float) -> str:
     return f"-${s}" if x < 0 else f"${s}"
 
 
-def kb(rows):
-    return InlineKeyboardMarkup([[InlineKeyboardButton(t, callback_data=d) for t, d in r] for r in rows])
+def kb(rows, uid):
+    """Inline keyboard; every button carries its owner's user id so others can't press it."""
+    return InlineKeyboardMarkup([[InlineKeyboardButton(t, callback_data=f"{d}|{uid}") for t, d in r]
+                                 for r in rows])
 
 
-KB_MODE = kb([[("📈 Intraday", "mode:INTRADAY"), ("🌙 EOD", "mode:EOD")]])
-KB_CONFIRM = kb([[("✅ OK", "confirm:ok"), ("🔄 Restart", "confirm:restart")]])
-KB_DAYS = kb([[(d, f"day:{d}") for d in DAYS], [("📊 Print", "print"), ("↩️ Undo last", "undo")]])
-KB_END = kb([[("🔄 Restart", "restart"), ("📊 Print Performance", "print")]])
+def kb_mode(u):
+    return kb([[("📈 Intraday", "mode:INTRADAY"), ("🌙 EOD", "mode:EOD")]], u)
 
 
-def kb_result(day):
-    return kb([[("✅ TP", f"res:{day}:TP"), ("❌ SL", f"res:{day}:SL")], [("⬅️ Back", "back")]])
+def kb_confirm(u):
+    return kb([[("✅ OK", "confirm:ok"), ("🔄 Restart", "confirm:restart")]], u)
+
+
+def kb_days(u):
+    return kb([[(d, f"day:{d}") for d in DAYS], [("📊 Print", "print"), ("↩️ Undo last", "undo")]], u)
+
+
+def kb_end(u):
+    return kb([[("🔄 Restart", "restart"), ("📊 Print Performance", "print")]], u)
+
+
+def kb_result(day, u):
+    return kb([[("✅ TP", f"res:{day}:TP"), ("❌ SL", f"res:{day}:SL")], [("⬅️ Back", "back")]], u)
 
 
 def status_line(bt: Backtest) -> str:
@@ -121,27 +133,68 @@ def status_line(bt: Backtest) -> str:
             f"🛡 Threshold: {money(bt.threshold)}   Room left: *{money(bt.balance - bt.threshold)}*")
 
 
+# ---------------- who is talking ----------------
+def is_group(update: Update) -> bool:
+    return update.effective_chat.type in ("group", "supergroup")
+
+
+def ukey(update: Update) -> str:
+    """Storage key: private chat -> chat id; group -> chat id + user id (each person separate)."""
+    if is_group(update):
+        return f"{update.effective_chat.id}:{update.effective_user.id}"
+    return str(update.effective_chat.id)
+
+
+def uid(update: Update) -> str:
+    return str(update.effective_user.id)
+
+
+def esc(s: str) -> str:
+    for ch in "_*`[]":
+        s = s.replace(ch, "\\" + ch)
+    return s
+
+
+def who(update: Update) -> str:
+    """'@Name — ' prefix (a real mention) in groups, nothing in private chat."""
+    if not is_group(update):
+        return ""
+    u = update.effective_user
+    return f"[{esc(u.first_name or 'trader')}](tg://user?id={u.id}) — "
+
+
+def plain_who(update: Update) -> str:
+    return f"{update.effective_user.first_name} — " if is_group(update) else ""
+
+
 # ---------------- setup flow ----------------
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    c = chat(update.effective_chat.id)
+    c = chat(ukey(update))
     c["setup"], c["step"], c["bt"] = {}, None, None
     save_db()
     await update.effective_chat.send_message(
-        f"🧪 *The Backtest Room* — {VERSION}\n\nNew backtest. Which drawdown type?",
-        parse_mode="Markdown", reply_markup=KB_MODE)
+        f"{who(update)}🧪 *The Backtest Room* — {VERSION}\n\nNew backtest. Which drawdown type?",
+        parse_mode="Markdown", reply_markup=kb_mode(uid(update)))
 
 
 async def ask_step(update: Update, i: int):
-    c = chat(update.effective_chat.id)
+    c = chat(ukey(update))
     c["step"] = i
     save_db()
-    await update.effective_chat.send_message(STEPS[i][1], parse_mode="Markdown")
+    markup = None
+    text = STEPS[i][1]
+    if is_group(update):
+        # in groups the bot only sees replies to its own messages, so ask for a reply
+        markup = ForceReply(selective=True, input_field_placeholder="type a number")
+        text = who(update) + text + "\n_(reply to this message)_"
+    await update.effective_chat.send_message(text, parse_mode="Markdown", reply_markup=markup)
 
 
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    c = chat(update.effective_chat.id)
+    c = chat(ukey(update))
     if c.get("step") is None or c.get("setup") is None:
-        await update.message.reply_text("Send /start to begin a new backtest, or /print for your sheet.")
+        if not is_group(update):
+            await update.message.reply_text("Send /start to begin a new backtest, or /print for your receipt.")
         return
     raw = update.message.text.strip().lower().replace(",", "").replace("$", "").replace("rr", "").strip()
     try:
@@ -150,6 +203,8 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError
     except ValueError:
         await update.message.reply_text("Please type a number bigger than 0 🙂")
+        if is_group(update):
+            await ask_step(update, c["step"])
         return
     key = STEPS[c["step"]][0]
     c["setup"][key] = val
@@ -162,14 +217,14 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_confirm(update: Update):
-    s = chat(update.effective_chat.id)["setup"]
+    s = chat(ukey(update))["setup"]
     real_rr = s["tp"] / s["sl"]
     note = ""
     if abs(real_rr - s["rr"]) > 0.01:
         note = (f"\n⚠️ TP ÷ SL = {real_rr:.2f}R, but you typed {s['rr']:g}R. "
                 f"I'll pay wins at your TP size ({money(s['tp'])}). Hit Restart if that's wrong.")
     text = (
-        "📋 *Please confirm your backtest*\n\n"
+        f"{who(update)}📋 *Please confirm your backtest*\n\n"
         f"Type: *{MODE_NAME[s['mode']]}*\n"
         f"Target: *{money(s['target'])}*\n"
         f"Drawdown: *{money(s['drawdown'])}*\n"
@@ -180,20 +235,25 @@ async def send_confirm(update: Update):
         f"Wins needed (no losses): {-(-s['target'] // s['tp']):.0f} TP"
         f"{note}"
     )
-    await update.effective_chat.send_message(text, parse_mode="Markdown", reply_markup=KB_CONFIRM)
+    await update.effective_chat.send_message(text, parse_mode="Markdown", reply_markup=kb_confirm(uid(update)))
 
 
 # ---------------- buttons ----------------
 async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
+    data, _, owner = q.data.partition("|")
+    if owner and owner != uid(update):
+        await q.answer("These buttons belong to another trader. Send /start to begin your own backtest.",
+                       show_alert=True)
+        return
     await q.answer()
-    cid = update.effective_chat.id
-    c = chat(cid)
-    data = q.data
+    k, u, me = ukey(update), uid(update), who(update)
+    c = chat(k)
 
     if data.startswith("mode:"):
         c["setup"] = {"mode": data.split(":")[1]}
-        await q.edit_message_text(f"Drawdown type: *{MODE_NAME[c['setup']['mode']]}* ✅", parse_mode="Markdown")
+        await q.edit_message_text(f"{me}Drawdown type: *{MODE_NAME[c['setup']['mode']]}* ✅",
+                                  parse_mode="Markdown")
         await ask_step(update, 0)
         return
 
@@ -205,11 +265,11 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         bt = Backtest(s["mode"], s["target"], s["drawdown"], s["sl"], s["tp"], s["rr"])
         c["setup"] = None
-        put_bt(cid, bt)
+        put_bt(k, bt)
         await q.edit_message_reply_markup(None)
         await q.message.reply_text(
-            "🚀 *Backtest started!*\n" + status_line(bt) + "\n\nPick the day of your trade:",
-            parse_mode="Markdown", reply_markup=KB_DAYS)
+            f"{me}🚀 *Backtest started!*\n" + status_line(bt) + "\n\nPick the day of your trade:",
+            parse_mode="Markdown", reply_markup=kb_days(u))
         return
 
     if data in ("confirm:restart", "restart"):
@@ -221,62 +281,63 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_print(update)
         return
 
-    bt = get_bt(cid)
+    bt = get_bt(k)
     if bt is None:
-        await q.message.reply_text("No active backtest. Send /start.")
+        await q.message.reply_text(f"{plain_who(update)}No active backtest. Send /start.")
         return
 
     if data.startswith("day:"):
         if bt.status != "ACTIVE":
-            await q.message.reply_text("This backtest is finished.", reply_markup=KB_END)
+            await q.message.reply_text(f"{plain_who(update)}This backtest is finished.", reply_markup=kb_end(u))
             return
         day = data.split(":")[1]
-        await q.edit_message_text(f"Trade #{len(bt.trades) + 1} — *{day}*. Result?",
-                                  parse_mode="Markdown", reply_markup=kb_result(day))
+        await q.edit_message_text(f"{me}Trade #{len(bt.trades) + 1} — *{day}*. Result?",
+                                  parse_mode="Markdown", reply_markup=kb_result(day, u))
         return
 
     if data == "back":
-        await q.edit_message_text("Pick the day of your trade:", reply_markup=KB_DAYS)
+        await q.edit_message_text(f"{me}Pick the day of your trade:", parse_mode="Markdown",
+                                  reply_markup=kb_days(u))
         return
 
     if data == "undo":
         if bt.undo():
-            put_bt(cid, bt)
-            await q.edit_message_text("↩️ Last trade removed.\n\n" + status_line(bt) + "\n\nPick the day:",
-                                      parse_mode="Markdown", reply_markup=KB_DAYS)
+            put_bt(k, bt)
+            await q.edit_message_text(f"{me}↩️ Last trade removed.\n\n" + status_line(bt) + "\n\nPick the day:",
+                                      parse_mode="Markdown", reply_markup=kb_days(u))
         else:
-            await q.message.reply_text("Nothing to undo yet.")
+            await q.message.reply_text(f"{plain_who(update)}Nothing to undo yet.")
         return
 
     if data.startswith("res:"):
         _, day, res = data.split(":")
         if bt.status != "ACTIVE":
-            await q.message.reply_text("This backtest is finished.", reply_markup=KB_END)
+            await q.message.reply_text(f"{plain_who(update)}This backtest is finished.", reply_markup=kb_end(u))
             return
         t = bt.log(day, res)
-        put_bt(cid, bt)
+        put_bt(k, bt)
         icon = "✅" if res == "TP" else "❌"
-        head = f"{icon} #{t.n} {day} (W{t.week}) {res} {money(t.pnl)}\n" + status_line(bt)
+        head = f"{me}{icon} #{t.n} {day} (W{t.week}) {res} {money(t.pnl)}\n" + status_line(bt)
         await q.edit_message_text(head, parse_mode="Markdown")
 
         if bt.status == "BLOWN":
             await q.message.reply_text(
-                f"💥 *ACCOUNT BLOWN* on trade #{t.n}.\n"
+                f"{me}💥 *ACCOUNT BLOWN* on trade #{t.n}.\n"
                 f"P&L {money(bt.balance)} hit the threshold {money(bt.threshold)}.\n"
                 f"{len(bt.trades)} trades, win rate {bt.stats()['win_rate']:.1f}%.",
-                parse_mode="Markdown", reply_markup=KB_END)
+                parse_mode="Markdown", reply_markup=kb_end(u))
         elif bt.status == "PASSED":
             await q.message.reply_text(
-                f"🏆 *CONGRATS — YOU PASSED!* 🎉\n"
+                f"{me}🏆 *CONGRATS — YOU PASSED!* 🎉\n"
                 f"Target {money(bt.target)} reached in {len(bt.trades)} trades "
                 f"(win rate {bt.stats()['win_rate']:.1f}%).\nFinal P&L: *{money(bt.balance)}*",
-                parse_mode="Markdown", reply_markup=KB_END)
+                parse_mode="Markdown", reply_markup=kb_end(u))
         else:
             warn = ""
             if bt.balance - bt.threshold <= bt.sl:
                 warn = "\n⚠️ *Danger:* one more SL blows the account."
-            await q.message.reply_text("Next trade — pick the day:" + warn,
-                                       parse_mode="Markdown", reply_markup=KB_DAYS)
+            await q.message.reply_text(f"{me}Next trade — pick the day:" + warn,
+                                       parse_mode="Markdown", reply_markup=kb_days(u))
         return
 
 
@@ -331,21 +392,21 @@ def build_csv(bt: Backtest) -> bytes:
 
 
 async def send_print(update: Update):
-    bt = get_bt(update.effective_chat.id)
+    bt = get_bt(ukey(update))
     if bt is None:
-        await update.effective_chat.send_message("No backtest yet. Send /start.")
+        await update.effective_chat.send_message(f"{plain_who(update)}No backtest yet. Send /start.")
         return
-    c = chat(update.effective_chat.id)
+    c = chat(ukey(update))
     c["receipt_no"] = c.get("receipt_no", 0) + 1
     save_db()
     no = c["receipt_no"]
-    pdf = receipt.render(bt, no)
+    pdf = receipt.render(bt, no, trader=update.effective_user.first_name or "")
     tag = {"PASSED": "PASSED", "BLOWN": "BLOWN", "ACTIVE": "in progress"}[bt.status]
     await update.effective_chat.send_document(
         document=pdf, filename=f"backtest_receipt_{no:05d}.pdf",
-        caption=f"Receipt #{no:05d} - {len(bt.trades)} trades - net {money(bt.balance)} - {tag}")
+        caption=f"{plain_who(update)}Receipt #{no:05d} - {len(bt.trades)} trades - net {money(bt.balance)} - {tag}")
     if bt.status != "ACTIVE":
-        await update.effective_chat.send_message("What next?", reply_markup=KB_END)
+        await update.effective_chat.send_message(f"{plain_who(update)}What next?", reply_markup=kb_end(uid(update)))
 
 
 async def cmd_print(update: Update, context: ContextTypes.DEFAULT_TYPE):
