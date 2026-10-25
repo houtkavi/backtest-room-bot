@@ -1,7 +1,32 @@
 {
  "297166671": {
-  "setup": {},
+  "setup": null,
   "step": null,
-  "bt": null
+  "bt": {
+   "mode": "INTRADAY",
+   "target": 3000.0,
+   "drawdown": 2000.0,
+   "sl": 350.0,
+   "tp": 1050.0,
+   "rr": 3.0,
+   "balance": 1050.0,
+   "peak": 1050.0,
+   "threshold": -950.0,
+   "status": "ACTIVE",
+   "week": 1,
+   "last_day": "Mon",
+   "trades": [
+    {
+     "n": 1,
+     "day": "Mon",
+     "week": 1,
+     "result": "TP",
+     "pnl": 1050.0,
+     "balance": 1050.0,
+     "threshold": -950.0,
+     "room": 2000.0
+    }
+   ]
+  }
  }
 }
