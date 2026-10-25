@@ -6,11 +6,43 @@
   "receipt_no": 1
  },
  "-5431435114:297166671": {
-  "setup": {
+  "setup": null,
+  "step": null,
+  "bt": {
    "mode": "INTRADAY",
-   "target": 3000.0
-  },
-  "step": 1,
-  "bt": null
+   "target": 3000.0,
+   "drawdown": 2000.0,
+   "sl": 300.0,
+   "tp": 900.0,
+   "rr": 3.0,
+   "balance": 1800.0,
+   "peak": 1800.0,
+   "threshold": -200.0,
+   "status": "ACTIVE",
+   "week": 1,
+   "last_day": "Wed",
+   "trades": [
+    {
+     "n": 1,
+     "day": "Tue",
+     "week": 1,
+     "result": "TP",
+     "pnl": 900.0,
+     "balance": 900.0,
+     "threshold": -1100.0,
+     "room": 2000.0
+    },
+    {
+     "n": 2,
+     "day": "Wed",
+     "week": 1,
+     "result": "TP",
+     "pnl": 900.0,
+     "balance": 1800.0,
+     "threshold": -200.0,
+     "room": 2000.0
+    }
+   ]
+  }
  }
 }
