@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+token.txt
+bot_log.txt
+.installed
+*.tmp

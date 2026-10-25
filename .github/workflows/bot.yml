@@ -1,0 +1,54 @@
+name: Run Backtest Room bot
+
+# Runs the bot 24/7. Each run lasts ~5h50m; a new run starts every 4 hours
+# and cancels the old one, so there is always one bot online.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 */4 * * *"
+
+concurrency:
+  group: telegram-bot
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Run bot (saves backtests to the repo every minute)
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          git config user.name  "backtest-room-bot"
+          git config user.email "backtest-room-bot@users.noreply.github.com"
+          mkdir -p data
+          date -u > data/last_start.txt
+          git add data && git commit -qm "bot started [skip ci]" && git push -q || true
+
+          save() {
+            git add data
+            if ! git diff --cached --quiet; then
+              git commit -qm "save backtests [skip ci]"
+              git pull -q --rebase -X ours || true
+              git push -q || true
+            fi
+          }
+          ( while true; do sleep 60; save; done ) &
+          SAVER=$!
+
+          timeout 20700 python bot.py || true
+          kill $SAVER || true
+          save
