@@ -9,12 +9,12 @@
    "sl": 350.0,
    "tp": 1050.0,
    "rr": 3.0,
-   "balance": 1050.0,
-   "peak": 1050.0,
-   "threshold": -950.0,
-   "status": "ACTIVE",
+   "balance": 0.0,
+   "peak": 2100.0,
+   "threshold": 100.0,
+   "status": "BLOWN",
    "week": 1,
-   "last_day": "Mon",
+   "last_day": "Thu",
    "trades": [
     {
      "n": 1,
@@ -25,6 +25,76 @@
      "balance": 1050.0,
      "threshold": -950.0,
      "room": 2000.0
+    },
+    {
+     "n": 2,
+     "day": "Tue",
+     "week": 1,
+     "result": "TP",
+     "pnl": 1050.0,
+     "balance": 2100.0,
+     "threshold": 100.0,
+     "room": 2000.0
+    },
+    {
+     "n": 3,
+     "day": "Wed",
+     "week": 1,
+     "result": "SL",
+     "pnl": -350.0,
+     "balance": 1750.0,
+     "threshold": 100.0,
+     "room": 1650.0
+    },
+    {
+     "n": 4,
+     "day": "Thu",
+     "week": 1,
+     "result": "SL",
+     "pnl": -350.0,
+     "balance": 1400.0,
+     "threshold": 100.0,
+     "room": 1300.0
+    },
+    {
+     "n": 5,
+     "day": "Thu",
+     "week": 1,
+     "result": "SL",
+     "pnl": -350.0,
+     "balance": 1050.0,
+     "threshold": 100.0,
+     "room": 950.0
+    },
+    {
+     "n": 6,
+     "day": "Thu",
+     "week": 1,
+     "result": "SL",
+     "pnl": -350.0,
+     "balance": 700.0,
+     "threshold": 100.0,
+     "room": 600.0
+    },
+    {
+     "n": 7,
+     "day": "Thu",
+     "week": 1,
+     "result": "SL",
+     "pnl": -350.0,
+     "balance": 350.0,
+     "threshold": 100.0,
+     "room": 250.0
+    },
+    {
+     "n": 8,
+     "day": "Thu",
+     "week": 1,
+     "result": "SL",
+     "pnl": -350.0,
+     "balance": 0.0,
+     "threshold": 100.0,
+     "room": -100.0
     }
    ]
   }
