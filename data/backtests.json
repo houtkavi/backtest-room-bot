@@ -6,8 +6,10 @@
   "receipt_no": 1
  },
  "-5431435114:297166671": {
-  "setup": {},
-  "step": null,
+  "setup": {
+   "mode": "INTRADAY"
+  },
+  "step": 0,
   "bt": null
  }
 }
