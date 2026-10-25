@@ -20,6 +20,7 @@ from telegram.ext import (
 )
 
 from engine import Backtest, DAYS, LOCK_AT
+import receipt
 
 VERSION = "Beta v1.0"
 DATA_FILE = Path(os.environ.get("DATA_FILE", "data/backtests.json"))
@@ -334,10 +335,15 @@ async def send_print(update: Update):
     if bt is None:
         await update.effective_chat.send_message("No backtest yet. Send /start.")
         return
-    await update.effective_chat.send_message(f"```\n{build_sheet(bt)}\n```", parse_mode="Markdown")
-    if bt.trades:
-        await update.effective_chat.send_document(
-            document=build_csv(bt), filename="backtest_trades.csv", caption="Full trade log (opens in Excel)")
+    c = chat(update.effective_chat.id)
+    c["receipt_no"] = c.get("receipt_no", 0) + 1
+    save_db()
+    no = c["receipt_no"]
+    pdf = receipt.render(bt, no)
+    tag = {"PASSED": "PASSED", "BLOWN": "BLOWN", "ACTIVE": "in progress"}[bt.status]
+    await update.effective_chat.send_document(
+        document=pdf, filename=f"backtest_receipt_{no:05d}.pdf",
+        caption=f"Receipt #{no:05d} - {len(bt.trades)} trades - net {money(bt.balance)} - {tag}")
     if bt.status != "ACTIVE":
         await update.effective_chat.send_message("What next?", reply_markup=KB_END)
 
