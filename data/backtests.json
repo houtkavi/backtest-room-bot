@@ -182,5 +182,17 @@
    ]
   },
   "receipt_no": 1
+ },
+ "-5431435114:1069885777": {
+  "setup": {
+   "mode": "INTRADAY",
+   "target": 3000.0,
+   "drawdown": 2000.0,
+   "sl": 200.0,
+   "tp": 600.0,
+   "rr": 3.0
+  },
+  "step": null,
+  "bt": null
  }
 }
