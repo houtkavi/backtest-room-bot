@@ -31,8 +31,13 @@
   }
  },
  "-1004388678861:263223522": {
-  "setup": {},
-  "step": null,
+  "setup": {
+   "mode": "INTRADAY",
+   "target": 3000.0,
+   "drawdown": 2000.0,
+   "sl": 500.0
+  },
+  "step": 3,
   "bt": null
  }
 }
