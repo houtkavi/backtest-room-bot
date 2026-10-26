@@ -31,13 +31,22 @@
   }
  },
  "-1004388678861:263223522": {
-  "setup": {
+  "setup": null,
+  "step": null,
+  "bt": {
    "mode": "INTRADAY",
    "target": 3000.0,
    "drawdown": 2000.0,
-   "sl": 500.0
-  },
-  "step": 3,
-  "bt": null
+   "sl": 500.0,
+   "tp": 800.0,
+   "rr": 1.6,
+   "balance": 0.0,
+   "peak": 0.0,
+   "threshold": -2000.0,
+   "status": "ACTIVE",
+   "week": 1,
+   "last_day": null,
+   "trades": []
+  }
  }
 }
