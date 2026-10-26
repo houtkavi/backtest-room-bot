@@ -102,12 +102,12 @@
    "sl": 500.0,
    "tp": 800.0,
    "rr": 1.6,
-   "balance": 300.0,
+   "balance": -200.0,
    "peak": 800.0,
    "threshold": -1200.0,
    "status": "ACTIVE",
    "week": 2,
-   "last_day": "Tue",
+   "last_day": "Wed",
    "trades": [
     {
      "n": 1,
@@ -128,6 +128,16 @@
      "balance": 300.0,
      "threshold": -1200.0,
      "room": 1500.0
+    },
+    {
+     "n": 3,
+     "day": "Wed",
+     "week": 2,
+     "result": "SL",
+     "pnl": -500.0,
+     "balance": -200.0,
+     "threshold": -1200.0,
+     "room": 1000.0
     }
    ]
   }
