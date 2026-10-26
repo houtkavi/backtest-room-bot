@@ -184,15 +184,22 @@
   "receipt_no": 1
  },
  "-5431435114:1069885777": {
-  "setup": {
+  "setup": null,
+  "step": null,
+  "bt": {
    "mode": "INTRADAY",
    "target": 3000.0,
    "drawdown": 2000.0,
    "sl": 200.0,
    "tp": 600.0,
-   "rr": 3.0
-  },
-  "step": null,
-  "bt": null
+   "rr": 3.0,
+   "balance": 0.0,
+   "peak": 0.0,
+   "threshold": -2000.0,
+   "status": "ACTIVE",
+   "week": 1,
+   "last_day": null,
+   "trades": []
+  }
  }
 }
