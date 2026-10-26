@@ -12,6 +12,16 @@
   "receipt_no": 1
  },
  "-1004388678861:297166671": {
+  "setup": {
+   "mode": "INTRADAY",
+   "target": 3000.0,
+   "drawdown": 2000.0,
+   "sl": 450.0
+  },
+  "step": 3,
+  "bt": null
+ },
+ "-1004388678861:263223522": {
   "setup": {},
   "step": null,
   "bt": null
